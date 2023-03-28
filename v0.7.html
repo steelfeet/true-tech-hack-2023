@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Первая страница</title>
+
+    <style>
+#videoPlayer {
+    width: 600px;
+    position: relative;
+    z-index:  50;
+}
+ 
+#video {
+    width: 100%;
+}
+
+#canvas {
+    width: 100%;
+    background: rgba(58, 205, 255, 0.9);
+} 
+
+#back {
+    width: 100%;
+    visibility: hidden;
+} 
+
+#filtered {
+    width: 100%;
+    background: rgba(205, 255, 58, 0.9);
+} 
+
+.video-track {
+    height: 5px;
+    width: 100%;
+    background-color: #b6b6b6;
+}
+ 
+.timeline {
+    height: 5px;
+    width: 0;
+    background-color: #58b4ff
+}
+ 
+.buttons {
+    padding: 5px 0;
+}    
+
+#admin {
+    width: 400px;
+}
+
+.subs {
+  position: absolute;
+  z-index:  100;
+  
+  top: 370px;
+  width:    100%;
+  height:   50px;
+  
+  /*background: rgba(58, 204, 255, 0.7);*/
+}
+
+.s1 {
+    color: white;
+    font-size: 16pt;
+}
+
+
+</style>
+</head>
+<body>
+<table width=100% border=0><tr align="center" valign="top">
+<td>
+    <div id="videoPlayer">
+        <video id="video" src="./videoplayback.mp4" ></video>
+        <div id="controls">
+            <div class="video-track">
+                <div class="timeline"></div>
+            </div>
+        </div>
+        <canvas id="canvas"></canvas>
+    </div>
+</td><td>
+    <canvas id="filtered"></canvas>
+    <div id="admin">
+        <h3>Управление и настройки</h3>
+        <div class="data">
+        </div>
+
+        <div class="position">
+            Текущая позиция: 0 с.
+        </div>
+        <br>
+        <div class="buttons">
+            <button class="play">Play</button>
+            <button class="pause">Pause</button>
+            <button class="rewind">&#60;rewind 5 c.</button>
+            <button class="forward">forward 5 c.&#62;</button>
+        </div>
+
+    <canvas id="back" crossorigin="Anonymous"></canvas>
+    </div>
+</td></tr></table>
+
+
+    <script>
+        //http://html5doctor.com/video-canvas-magic/
+        let video = document.getElementById("video");
+        let videoTrack = document.querySelector(".video-track");
+        let time = document.querySelector(".timeline");
+        let btnPlay = document.querySelector(".play");
+        let btnPause = document.querySelector(".pause");
+        let btnRewind = document.querySelector(".rewind");
+        let btnForward = document.querySelector(".forward");
+
+        let el_position = document.querySelector(".position");
+        let el_data = document.querySelector(".data");
+        let el_subs = document.querySelector(".subs");
+
+        //координаты видео
+        var videoX = Math.round(video.getBoundingClientRect().x);
+        el_data.innerHTML = "X: " + videoX
+
+        var videoY = Math.round(video.getBoundingClientRect().y);
+        el_data.innerHTML = el_data.innerHTML + "; Y: " + videoY
+
+        var videoW = Math.round(video.getBoundingClientRect().width);
+        el_data.innerHTML = el_data.innerHTML + "; W: " + videoW
+
+        var videoH = Math.round(video.getBoundingClientRect().height) + 52;
+        el_data.innerHTML = el_data.innerHTML + "; H: " + videoH
+
+
+        //canvas с выделением области
+        var canvas = document.getElementById('canvas');
+        canvas.width = videoW;
+        canvas.height = videoH;
+        var ctx = canvas.getContext('2d');
+
+        //canvas для переноса с видео
+        var back = document.getElementById('back');
+        var backcontext = back.getContext('2d');
+        back.width = videoW;
+        back.height = videoH;
+
+        //canvas итоговый
+        var filtered = document.getElementById('filtered');
+        var filtered_ctx = filtered.getContext('2d');
+        filtered.width = videoW;
+        filtered.height = videoH;
+
+        //сразу формируем массив квадратиков
+        var div_list = [[], []]
+
+        //количество пискелей в квадратике
+        var pix_per_square = 4
+        dix_n = -1
+        diy_n = 0
+
+        const div_start = new Date().getTime();
+        /*
+        for (let x = 0; x < videoW; x++) {
+            if (x % pix_per_square == 0) {
+                div_list[dix_n] = []
+                diy_n = 0
+                for (let y = 0; y < videoH; y++) {
+                    if (y % pix_per_square == 0) {
+
+                        div = document.createElement('div');
+                        div_top = diy_n * pix_per_square + videoY
+                        div_left = dix_n * pix_per_square + videoX
+
+                        cssText = `position: absolute; z-index:  100; top: ${div_top}px; left: ${div_left}px; width: ${pix_per_square}px; height: ${pix_per_square}px; background: rgba(205, 58, 255, 0.9);`
+                        div.style.cssText = cssText
+        
+                        div_list[dix_n][diy_n] = div;
+                        document.body.append(div);
+
+                        diy_n = diy_n + 1
+                    }
+                }
+            
+                dix_n = dix_n + 1
+            }
+           
+            
+        }
+        */
+
+        const div_end = new Date().getTime();
+        duration = div_end - div_start
+        el_data.innerHTML = el_data.innerHTML + "<br>Init duration: " + duration + " ms"
+        el_data.innerHTML = el_data.innerHTML + "<br>max dix_n: " + dix_n
+        el_data.innerHTML = el_data.innerHTML + "<br>max diy_n: " + diy_n
+
+
+        //синхронизация canvas и video
+        video.addEventListener('play', function(){
+            draw(this, ctx, backcontext, filtered_ctx, videoW, videoH);
+        },false);
+
+        function draw(v,c, bc, filtered_ctx, w,h) {
+            if(v.paused || v.ended) return false;
+            // First, draw it into the backing canvas
+            bc.drawImage(v,0,0,w,h);
+            var idata = bc.getImageData(0,0,w,h);
+            var filtered_idata = bc.getImageData(0,0,w,h);
+            // Grab the pixel data from the backing canvas
+            var data = idata.data;
+            var filtered_data = filtered_idata.data
+            // Loop through the pixels, turning them grayscale
+            //черно-белое
+            /*
+            for(var i = 0; i < data.length; i+=4) {
+                var r = data[i];
+                var g = data[i+1];
+                var b = data[i+2];
+                var brightness = (3*r+4*g+b)>>>3;
+                data[i] = brightness;
+                data[i+1] = brightness;
+                data[i+2] = brightness;
+            }
+            */
+
+            //приглушаем самое яркое
+            let bright_list = [[], []]
+            dix_n = -1
+            diy_n = 0
+            var summ = 0
+            pix_n = 0
+            for(var i = 0; i < data.length; i+=4) {
+                var r = data[i];
+                var g = data[i+1];
+                var b = data[i+2];
+                var brightness = (3*r+4*g+b)>>>3;
+                summ = summ + brightness
+
+                pix_n = pix_n + 1
+                if (pix_n < videoW) {
+                    x = pix_n
+                } else {
+                    x = pix_n % videoW
+                }
+                y = Math.round(pix_n / videoW)
+
+                if (x % pix_per_square == 0) {
+                    div_list[dix_n] = []
+                    diy_n = 0
+                }
+
+            }
+
+            average = summ / (data.length / 3)
+
+
+            //приглушаем все
+            for(var i = 0; i < data.length; i+=4) {
+                var r = data[i];
+                var g = data[i+1];
+                var b = data[i+2];
+                var brightness = (3*r+4*g+b)>>>3;
+                
+                
+                if (brightness > (average * 5)) {
+                    //выделяемая область
+                    data[i] = 0;
+                    data[i+1] = 255;
+                    data[i+2] = 0;
+
+                    //итоговая
+                    filtered_data[i] = r - r/3
+                    filtered_data[i+1] = g - g/3
+                    filtered_data[i+2] = b - b/3
+                    
+                }
+            }
+
+            idata.data = data;
+            c.putImageData(idata,0,0);
+
+            filtered_idata.data = filtered_data;
+            filtered_ctx.putImageData(filtered_idata,0,0);
+
+            // Start over!
+            setTimeout(function(){ draw(v,c,bc, filtered_ctx, w,h); }, 0);
+
+
+
+        }
+
+
+        btnPlay.addEventListener("click", function() {
+            video.play();
+            videoPlay = setInterval(function() {
+                let videoTime = Math.round(video.currentTime)
+                let videoLength = Math.round(video.duration)
+                time.style.width = (videoTime * 100) / videoLength + '%';
+                
+                el_position.innerHTML = "Текущая позиция: " +video.currentTime + " c."
+
+                //субтитры
+                let cTime = video.currentTime
+
+            }, 10)
+
+        });
+
+        btnPause.addEventListener("click", function() {
+            video.pause();
+            clearInterval(videoPlay)
+        });
+
+        btnRewind.addEventListener("click", function() {
+            video.currentTime -= 5;
+            el_position.innerHTML = "Текущая позиция: " + Math.round(video.currentTime) + " c."
+
+        });
+
+        btnForward.addEventListener("click", function() {
+            video.currentTime += 5;
+            el_position.innerHTML = "Текущая позиция: " + Math.round(video.currentTime) + " c."
+
+        });
+
+        videoTrack.addEventListener("click", function(e) {
+            let posX = e.clientX - 8;
+            let timePos = (posX * 100) / 800;
+            time.style.width = timePos + '%';
+            video.currentTime = (timePos * Math.round(video.duration)) / 100
+        });
+    </script>
+</body>
+</html>

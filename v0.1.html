@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Первая страница</title>
+
+    <style>
+#videoPlayer {
+    width: 800px;
+    position: relative;
+    z-index:  50;
+}
+ 
+#video {
+    width: 100%;
+}
+ 
+.video-track {
+    height: 5px;
+    width: 100%;
+    background-color: #b6b6b6;
+}
+ 
+.timeline {
+    height: 5px;
+    width: 0;
+    background-color: #58b4ff
+}
+ 
+.buttons {
+    padding: 5px 0;
+}    
+
+#admin {
+    width: 400px;
+}
+
+.subs {
+  position: absolute;
+  z-index:  100;
+  
+  top: 370px;
+  width:    100%;
+  height:   50px;
+  
+  /*background: rgba(58, 204, 255, 0.7);*/
+}
+
+.s1 {
+    color: white;
+    font-size: 16pt;
+}
+
+
+</style>
+</head>
+<body>
+<table width=100% border=0><tr align="center" valign="top">
+<td>
+    <div id="videoPlayer">
+        <video id="video" src="./videoplayback.mp4" >
+        </video>
+        <div id="controls">
+            <div class="video-track">
+                <div class="timeline"></div>
+            </div>
+        </div>
+    </div>
+</td><td>
+    <div id="admin">
+        <h3>Управление и настройки</h3>
+        <div class="data">
+        </div>
+
+        <div class="position">
+            Текущая позиция: 0 с.
+        </div>
+        <br>
+        <div class="buttons">
+            <button class="play">Play</button>
+            <button class="pause">Pause</button>
+            <button class="rewind">&#60;rewind 5 c.</button>
+            <button class="forward">forward 5 c.&#62;</button>
+        </div>
+
+    </div>
+</td></tr></table>
+
+
+    <script>
+        let video = document.getElementById("video");
+        let videoTrack = document.querySelector(".video-track");
+        let time = document.querySelector(".timeline");
+        let btnPlay = document.querySelector(".play");
+        let btnPause = document.querySelector(".pause");
+        let btnRewind = document.querySelector(".rewind");
+        let btnForward = document.querySelector(".forward");
+
+        let el_position = document.querySelector(".position");
+        let el_data = document.querySelector(".data");
+        let el_subs = document.querySelector(".subs");
+
+        //координаты видео
+        var videoX = Math.round(video.getBoundingClientRect().x);
+        el_data.innerHTML = "X: " + videoX
+
+        var videoY = Math.round(video.getBoundingClientRect().y);
+        el_data.innerHTML = el_data.innerHTML + "; Y: " + videoY
+
+        var videoW = Math.round(video.getBoundingClientRect().width);
+        el_data.innerHTML = el_data.innerHTML + "; W: " + videoW
+
+        var videoH = Math.round(video.getBoundingClientRect().height);
+        el_data.innerHTML = el_data.innerHTML + "; H: " + videoH
+
+        //сразу формируем массив квадратиков
+        let div_list = [[], []]
+
+        //количество пискелей в квадратике
+        var pix_per_square = 4
+        dix_n = videoW / pix_per_square
+        diy_n = videoH / pix_per_square
+
+        const div_start = new Date().getTime();
+        for (let ix = 0; ix < dix_n; ix++) {
+            div_list[ix] = []
+            for (let iy = 0; iy < diy_n+10; iy++) {
+                div = document.createElement('div');
+                div_top = iy * pix_per_square + videoY
+                div_left = ix * pix_per_square + videoX
+
+                cssText = `position: absolute; z-index:  100; top: ${div_top}px; left: ${div_left}px; width: ${pix_per_square}px; height: ${pix_per_square}px; background: rgba(205, 58, 255, 0.9);`
+                div.style.cssText = cssText
+  
+                div_list[ix][iy] = div;
+                document.body.append(div);
+            }
+        }
+
+        const div_end = new Date().getTime();
+        duration = div_end - div_start
+        el_data.innerHTML = el_data.innerHTML + "<br>Init duration: " + duration + " ms"
+
+
+
+
+        btnPlay.addEventListener("click", function() {
+            video.play();
+            videoPlay = setInterval(function() {
+                let videoTime = Math.round(video.currentTime)
+                let videoLength = Math.round(video.duration)
+                time.style.width = (videoTime * 100) / videoLength + '%';
+                
+                el_position.innerHTML = "Текущая позиция: " +video.currentTime + " c."
+
+                //субтитры
+                let cTime = video.currentTime
+
+            }, 10)
+
+        });
+
+        btnPause.addEventListener("click", function() {
+            video.pause();
+            clearInterval(videoPlay)
+        });
+
+        btnRewind.addEventListener("click", function() {
+            video.currentTime -= 5;
+            el_position.innerHTML = "Текущая позиция: " + Math.round(video.currentTime) + " c."
+
+        });
+
+        btnForward.addEventListener("click", function() {
+            video.currentTime += 5;
+            el_position.innerHTML = "Текущая позиция: " + Math.round(video.currentTime) + " c."
+
+        });
+
+        videoTrack.addEventListener("click", function(e) {
+            let posX = e.clientX - 8;
+            let timePos = (posX * 100) / 800;
+            time.style.width = timePos + '%';
+            video.currentTime = (timePos * Math.round(video.duration)) / 100
+        });
+    </script>
+</body>
+</html>
